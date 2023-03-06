@@ -50,17 +50,11 @@ def login():  # login function
         hashed_password = hashlib.sha256()
         hashed_password.update(request.form['password'].encode('utf-8'))
 
-        # print('posted password: ', request.form['password'].encode('utf-8'))
-        # print('posted password encoded: ', request.form['password'])
-        # print('hashed password encoded: ', hashed_password.hexdigest())
 
         if user:
             user_connect.cur.execute(f"Select password from users where username =  '{username}' ")
             results = user_connect.cur.fetchall()
             password = results[0][0]
-            # print('From db : ', password, password.encode('utf-8')==hashed_password, type(password), type(str(hashed_password)))<
-            # print(hashed_password.hexdigest(), 'Form Password')
-            # print(password , 'db Password')
 
             if hashed_password.hexdigest().__eq__(password):  # request.form['password'] == password:
                 session['logged_in'] = True
