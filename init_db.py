@@ -18,14 +18,6 @@ class user_connect:
     cur = conn.cursor()
     conn.commit()
 
-
-
-
-
-
-
-
-
 conn =  psycopg2.connect(
         host="localhost",
         database="labris",
