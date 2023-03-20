@@ -5,7 +5,7 @@ import hashlib
 import re
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import select
+# from sqlalchemy import update, MetaData
 
 from init_db import user_connect
 
@@ -18,17 +18,22 @@ db = SQLAlchemy(app)
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)  # primary keys are required by SQLAlchemy
 
-    username = db.Column(db.String(50))
+    username    = db.Column(db.String(50))
+    firstname   = db.Column(db.String(50))
+    middlename  = db.Column(db.String(50))
+    lastname    = db.Column(db.String(50))
+    birthdate   = db.Column(db.DateTime())
+    email       = db.Column(db.String(100), unique=True)
+    password    = db.Column(db.String(50))
 
-    firstname = db.Column(db.String(50))
-    middlename = db.Column(db.String(50))
-    lastname = db.Column(db.String(50))
-
-    birthdate = db.Column(db.DateTime())
-
-    email = db.Column(db.String(100), unique=True)
-    password = db.Column(db.String(50))
-
+    def __init__(self, username  ,firstname ,middlename,lastname  ,birthdate ,email ,password ):
+        self.username   = username
+        self.firstname  = firstname
+        self.middlename = middlename
+        self.lastname   = lastname
+        self.birthdate  = birthdate
+        self.email      = email
+        self.password   = password
 
 def log(text):
     x = datetime.datetime.now()
@@ -44,13 +49,11 @@ def hello_world():  # put application's code here
 
 @app.route('/login', methods=['POST'])
 def login():  # login function
-    if not session['logged_in'] :
+    if not session.get('logged_in') == True:
         username = request.form['username']
         user = Users.query.filter_by(username=username).first()
         hashed_password = hashlib.sha256()
         hashed_password.update(request.form['password'].encode('utf-8'))
-
-
         if user:
             user_connect.cur.execute(f"Select password from users where username =  '{username}' ")
             results = user_connect.cur.fetchall()
@@ -65,7 +68,9 @@ def login():  # login function
                 x = datetime.datetime.now()
                 time = (x.strftime("%X"))
                 date = (x.strftime("%x"))
-                user_connect.cur.execute(f"INSERT INTO loged_in_users (username, login_time, login_date) VALUES ('{username}', '{time}', '{date}')")
+
+                user_connect.cur.execute(
+                    f"INSERT INTO loged_in_users (username, login_time, login_date) VALUES ('{username}', '{time}', '{date}')")
                 user_connect.conn.commit()
                 print('login successful ', session['users'])
                 return jsonify({'message': 'Login successful!'})
@@ -79,6 +84,7 @@ def login():  # login function
             return jsonify({'message': 'Login failed! (user)'})
     else:
         return jsonify({'message': 'You can not log in again if you already logged in'})
+
 
 @app.route('/logout', methods=['GET'])
 def logout():  # logout function
@@ -98,9 +104,9 @@ def user_list():  # list user function
 
     userlist = {}
 
-    user_connect.cur.execute(f"Select id, username from users ")
+    user_connect.cur.execute(f"Select id, username, firstname, middlename from users ")
     results = user_connect.cur.fetchall()
-    for i in results: userlist[i[0]] = i[1]
+    for i in results: userlist[i[0]] = (i[1],i[2],i[3])
 
     return jsonify(userlist)
 
@@ -111,7 +117,7 @@ def user_create():  # create new user function
     username = username = request.form['username']
     email = request.form['email']
     mail_regex = re.compile(r'([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+')
-    password_regex = re.compile(r"^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$")
+    password_regex = re.compile(r'[A-Za-z0-9@#$%^&+=.]{8,}')
 
     existing_user = Users.query.filter_by(username=request.form['username']).first()
 
@@ -137,28 +143,71 @@ def user_create():  # create new user function
                          email=request.form['email'],
                          password=hashed_password.hexdigest())
 
-        user_connect.session.add(new_user)
-        user_connect.session.commit()
+        db.session.add(new_user)
+        db.session.commit()
         return jsonify({'message': 'New user created!'})
 
 
 @app.route('/user/delete/<int:id>', methods=['GET'])
 def user_delete(id):  # delete user function
 
-    user_connect.cur.execute(f"DELETE FROM users WHERE id = '{id}'")
-    print(f"DELETE FROM users WHERE id = '{id}'")
+    Users.query.filter_by(id=id).delete()
+    db.session.commit()
+
     return f'user deleted id : {id}'
 
 
-@app.route('/user/update/<int:id>', methods=['POST'])
-def user_update(id):  # update user's infos function
-    return f'user_update {id}'
+@app.route('/user/update/<username>', methods=['POST', 'GET'])
+def user_update(username):  # update user's infos function
+
+    # TODO if logged in
+    # TODO get username from session
+
+    if request.method == 'GET':
+        return 'hello!, you can update your firstname, middlename, lastname, birthdate, email and password here'
+    query_dict = {}
+
+    output = []
+    update_user = Users.query.filter_by(username= username).first() # session.get('users')
+
+    if request.form.get('firstname'):
+        update_user.firstname = request.form.get('firstname')
+        output.append('firstname updated')
+
+    if request.form.get('middlename'):
+        update_user.middlename = request.form.get('middlename')
+        output.append('middlename updated')
+
+    if request.form.get('lastname'):
+        update_user.lastname = request.form.get('lastname')
+        output.append('lastname updated')
+
+    if request.form.get('birthdate'):
+        update_user.birthdate = request.form.get('birthdate')
+        output.append('birthdate updated')
+
+    if request.form.get('email'):
+        update_user.email = request.form.get('email')
+        output.append('email updated')
+
+    db.session.commit()
+    return output, query_dict
 
 
 @app.route('/onlineusers', methods=['GET'])
 def online_users():  # show online users function
-    return 'online_users'
+
+    if session['logged_in']:
+        online_users_list = {}
+        user_connect.cur.execute(f"SELECT * FROM loged_in_users;")
+        results = user_connect.cur.fetchall()
+        for i in results: online_users_list[i[0]] = (i[1], i[2], i[3])
+        user_connect.conn.commit()
+        log("Online users listed")
+        return jsonify(online_users_list)
+    else:
+        return 'Log in required'
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(port=5001)  # debug=True,
