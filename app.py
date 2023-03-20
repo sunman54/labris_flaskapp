@@ -18,22 +18,23 @@ db = SQLAlchemy(app)
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)  # primary keys are required by SQLAlchemy
 
-    username    = db.Column(db.String(50))
-    firstname   = db.Column(db.String(50))
-    middlename  = db.Column(db.String(50))
-    lastname    = db.Column(db.String(50))
-    birthdate   = db.Column(db.DateTime())
-    email       = db.Column(db.String(100), unique=True)
-    password    = db.Column(db.String(50))
+    username = db.Column(db.String(50))
+    firstname = db.Column(db.String(50))
+    middlename = db.Column(db.String(50))
+    lastname = db.Column(db.String(50))
+    birthdate = db.Column(db.DateTime())
+    email = db.Column(db.String(100), unique=True)
+    password = db.Column(db.String(50))
 
-    def __init__(self, username  ,firstname ,middlename,lastname  ,birthdate ,email ,password ):
-        self.username   = username
-        self.firstname  = firstname
+    def __init__(self, username, firstname, middlename, lastname, birthdate, email, password):
+        self.username = username
+        self.firstname = firstname
         self.middlename = middlename
-        self.lastname   = lastname
-        self.birthdate  = birthdate
-        self.email      = email
-        self.password   = password
+        self.lastname = lastname
+        self.birthdate = birthdate
+        self.email = email
+        self.password = password
+
 
 def log(text):
     x = datetime.datetime.now()
@@ -94,6 +95,7 @@ def logout():  # logout function
         user_connect.cur.execute(f"DELETE FROM loged_in_users WHERE username = '{session['users']}'")
         user_connect.conn.commit()
         print('logged out : ', session['users'])
+        log(f'logged out : {session["users"]}')
         return jsonify({'message': 'Logged out!'})
     else:
         return jsonify({'message': 'Did not logged in'})
@@ -106,8 +108,8 @@ def user_list():  # list user function
 
     user_connect.cur.execute(f"Select id, username, firstname, middlename from users ")
     results = user_connect.cur.fetchall()
-    for i in results: userlist[i[0]] = (i[1],i[2],i[3])
-
+    for i in results: userlist[i[0]] = (i[1], i[2], i[3])
+    log('users listed')
     return jsonify(userlist)
 
 
@@ -145,6 +147,7 @@ def user_create():  # create new user function
 
         db.session.add(new_user)
         db.session.commit()
+        log(f'message New user created! : {username}')
         return jsonify({'message': 'New user created!'})
 
 
@@ -153,45 +156,62 @@ def user_delete(id):  # delete user function
 
     Users.query.filter_by(id=id).delete()
     db.session.commit()
+    log(f'user {id} deleted')
 
     return f'user deleted id : {id}'
 
 
-@app.route('/user/update/<username>', methods=['POST', 'GET'])
-def user_update(username):  # update user's infos function
+@app.route('/user/update/', methods=['POST', 'GET'])
+def user_update():  # update user's infos function
 
     # TODO if logged in
     # TODO get username from session
-
+    username = session.get('users')
     if request.method == 'GET':
         return 'hello!, you can update your firstname, middlename, lastname, birthdate, email and password here'
-    query_dict = {}
 
-    output = []
-    update_user = Users.query.filter_by(username= username).first() # session.get('users')
+    elif request.method == 'POST' and session.get('logged_in'):
+        output = []
+        update_user = Users.query.filter_by(username=username).first()  # session.get('users')
 
-    if request.form.get('firstname'):
-        update_user.firstname = request.form.get('firstname')
-        output.append('firstname updated')
+        if request.form.get('firstname'):
+            update_user.firstname = request.form.get('firstname')
+            output.append('firstname updated')
 
-    if request.form.get('middlename'):
-        update_user.middlename = request.form.get('middlename')
-        output.append('middlename updated')
+        if request.form.get('middlename'):
+            update_user.middlename = request.form.get('middlename')
+            output.append('middlename updated')
 
-    if request.form.get('lastname'):
-        update_user.lastname = request.form.get('lastname')
-        output.append('lastname updated')
+        if request.form.get('lastname'):
+            update_user.lastname = request.form.get('lastname')
+            output.append('lastname updated')
 
-    if request.form.get('birthdate'):
-        update_user.birthdate = request.form.get('birthdate')
-        output.append('birthdate updated')
+        if request.form.get('birthdate'):
+            update_user.birthdate = request.form.get('birthdate')
+            output.append('birthdate updated')
 
-    if request.form.get('email'):
-        update_user.email = request.form.get('email')
-        output.append('email updated')
+        if request.form.get('email'):
+            update_user.email = request.form.get('email')
+            output.append('email updated')
 
-    db.session.commit()
-    return output, query_dict
+        if request.form.get('password'):
+            password_regex = re.compile(r'[A-Za-z0-9@#$%^&+=.]{8,}')
+            if not re.fullmatch(password_regex, request.form['password']):  # Check if password is valid
+                return 'Password must be longer than 8 character \n' \
+                       ' at least one upper and one lower letter ([A-Za-z])\n' \
+                       ' at least one number and one special character(1234567890 .*?[#?!@$%^&*-) '
+
+            hashed_password = hashlib.sha256()  # created hashing object
+            hashed_password.update(request.form['password'].encode('utf-8'))
+            update_user.password = hashed_password
+            output.append('password updated')
+
+        db.session.commit()
+        log(output)
+        return output
+
+    else:
+        return 'Please Login'
 
 
 @app.route('/onlineusers', methods=['GET'])
@@ -210,4 +230,4 @@ def online_users():  # show online users function
 
 
 if __name__ == '__main__':
-    app.run(port=5001)  # debug=True,
+    app.run(port=5001)  # debug=True
