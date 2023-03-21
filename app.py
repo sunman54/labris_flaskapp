@@ -45,7 +45,7 @@ def log(text):
 
 @app.route('/')
 def hello_world():  # put application's code here
-    return 'Hello World!'
+    return '<h1>Hello Everyone !!!!</h1>'
 
 
 @app.route('/login', methods=['POST'])
