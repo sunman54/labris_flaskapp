@@ -18,12 +18,7 @@ CREATE TABLE users (id serial PRIMARY KEY,
                                  email varchar (150) NOT NULL,
                                  password varchar (200) NOT NULL,
                                  UNIQUE(username),
-                                 UNIQUE(email)
-                                 
-                                 ) 
-                                 
-                                 
-                                 ;
+                                 UNIQUE(email));
 
 ```
 
